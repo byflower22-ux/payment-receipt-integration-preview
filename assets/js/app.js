@@ -173,6 +173,37 @@
   function normalizeDocumentFields() {
     if (!Array.isArray(RECEIPT_DOCUMENTS)) return;
     RECEIPT_DOCUMENTS.forEach(function (document) {
+      if (document.overseas && document.payer !== 'Sands Bosum Business Pte. Ltd') {
+        document.payer = 'Sands Bosum Business Pte. Ltd';
+      }
+      document.isOverseasPayment = isOverseasPayment(document);
+      if (document.isOverseasPayment) {
+        document.receiptStatus = '—';
+        document.receiptNumber = '';
+        document.receiptFiles = [];
+        document.cbsNumber = '';
+        document.cbsApplicationNumber = '';
+        document.receiptFailureReason = '';
+        if (Array.isArray(document.timeline)) {
+          document.timeline = document.timeline.filter(function (event) {
+            return event.action !== '提交付款' && event.action !== '获取支付结果' && event.action !== '拉取回单结果';
+          });
+        }
+        if (document.isOverseasPayment && document.status === '已支付' && document.kingdeeStatus === '—') {
+          document.kingdeeStatus = '同步成功';
+          document.kingdeeCode = 'FKD' + String(document.id || '').slice(-7).padStart(7, '0');
+          document.kingdeeFailureReason = '';
+          document.timeline = Array.isArray(document.timeline) ? document.timeline : [];
+          if (!document.timeline.some(function (event) { return event.action === '同步金蝶'; })) {
+            document.timeline.push({
+              action: '同步金蝶',
+              note: '同步成功，金蝶编码：' + document.kingdeeCode,
+              operator: '系统',
+              at: document.statusAt || document.createdAt,
+            });
+          }
+        }
+      }
       if (!document.payeeType) {
         document.payeeType = (document.type === '报销单' || document.type === '差旅报销单') ? '个人' : '公司';
       }
@@ -241,6 +272,14 @@
     return IntegrationActionLogic.getLatestFailureReason(receipt);
   }
 
+  function isOverseasPayment(receipt) {
+    return Boolean(receipt && (
+      receipt.isOverseasPayment
+      || (IntegrationActionLogic && typeof IntegrationActionLogic.isOverseasPayment === 'function'
+        && IntegrationActionLogic.isOverseasPayment(receipt))
+    ));
+  }
+
   function renderStateActionButtons(receipt, approvalMode) {
     const id = escapeHtml(displayValue(receipt.id));
     return getWorkflowActions(receipt).map(function (action) {
@@ -292,7 +331,7 @@
         + '<td>' + escapeHtml(receipt.invoice ? '\u662f' : '\u5426') + '</td>'
         + '<td>' + escapeHtml(receipt.overseas ? '\u662f' : '\u5426') + '</td>'
         + '<td>' + escapeHtml(receipt.kingdeeStatus === '\u540c\u6b65\u6210\u529f' ? displayValue(receipt.kingdeeCode) : '\u2014') + '</td>'
-        + '<td><span class="cell-text">' + escapeHtml(displayValue(receipt.cbsNumber)) + '</span></td>'
+        + '<td><span class="cell-text">' + escapeHtml(isOverseasPayment(receipt) ? '\u2014' : displayValue(receipt.cbsNumber)) + '</span></td>'
         + '<td>' + escapeHtml(formatDate(receipt.createdAt)) + '</td>'
         + '<td>' + escapeHtml(formatDate(receipt.approvalPassedAt)) + '</td>'
         + '<td>' + escapeHtml(displayValue(receipt.applicant)) + '</td>'
@@ -382,6 +421,7 @@
     if (!page || !receipt) return;
 
     const amountWithCurrency = formatMoney(receipt.amount) + ' ' + displayValue(receipt.currency);
+    const overseasPayment = isOverseasPayment(receipt);
     const receiptFile = receipt.receiptNumber ? '支付回单_' + receipt.receiptNumber + '.pdf' : '';
     const actionButtons = renderStateActionButtons(receipt, true)
       .replace(/operation-button/g, 'operation-button operation-button--detail')
@@ -404,11 +444,11 @@
       + approvalField('付款主体', receipt.payer, { required: true })
       + approvalField('单据类型', receipt.type, { required: true })
       + approvalField('表单状态', receipt.status)
-      + approvalField('回单状态', receipt.receiptStatus)
+      + (overseasPayment ? '' : approvalField('回单状态', receipt.receiptStatus))
       + approvalField('金蝶状态', receipt.kingdeeStatus)
       + approvalField('金额', amountWithCurrency, { required: true })
       + approvalField('金蝶编码', receipt.kingdeeStatus === '同步成功' ? receipt.kingdeeCode : '—')
-      + approvalField('CBS流水号', receipt.cbsNumber || '—')
+      + approvalField('CBS流水号', overseasPayment ? '—' : (receipt.cbsNumber || '—'))
       + approvalField('内容', receipt.content, { wide: true, multiline: true })
       + '</dl><section class="approval-detail-section"><h3>费用明细</h3><table class="approval-detail-table"><thead><tr>'
       + '<th>费用类型</th><th>费用内容</th><th>报销金额（' + escapeHtml(displayValue(receipt.currency)) + '）</th><th>审核金额（' + escapeHtml(displayValue(receipt.currency)) + '）</th><th>事由</th>'
@@ -530,6 +570,7 @@
     }
 
     const amountWithCurrency = formatMoney(receipt.amount) + ' ' + displayValue(receipt.currency);
+    const overseasPayment = isOverseasPayment(receipt);
     if (title) title.textContent = approvalMode ? '\u5ba1\u6279\u8be6\u60c5' : '\u5355\u636e\u8be6\u60c5';
     state.detailDocumentId = String(receipt.id);
     content.innerHTML = '<dl class="detail-list">'
@@ -544,9 +585,10 @@
       + detailRow('\u662f\u5426\u6709\u53d1\u7968', receipt.invoice ? '\u662f' : '\u5426')
       + detailRow('\u662f\u5426\u6d89\u6d77\u5916', receipt.overseas ? '\u662f' : '\u5426')
       + detailRow('\u72b6\u6001', receipt.status)
-      + detailRow('\u56de\u5355\u72b6\u6001', receipt.receiptStatus)
+      + (overseasPayment ? '' : detailRow('\u56de\u5355\u72b6\u6001', receipt.receiptStatus))
       + detailRow('\u91d1\u8776\u72b6\u6001', receipt.kingdeeStatus)
       + detailRow('\u91d1\u8776\u7f16\u7801', receipt.kingdeeStatus === '\u540c\u6b65\u6210\u529f' ? receipt.kingdeeCode : '\u2014')
+      + detailRow('CBS\u6d41\u6c34\u53f7', overseasPayment ? '\u2014' : (receipt.cbsNumber || '\u2014'))
       + detailRow('\u72b6\u6001\u65f6\u95f4', formatDate(receipt.statusAt))
       + detailRow('\u5931\u8d25\u539f\u56e0', getLatestFailureReason(receipt) || '\u2014')
       + detailRow('\u5185\u5bb9', receipt.content, true)
@@ -685,12 +727,14 @@
     error.hidden = !message;
   }
 
-  function renderOperationFields(action) {
+  function renderOperationFields(action, receipt) {
     const fields = document.getElementById('operation-fields');
     if (!fields) return;
     let controls = '';
     if (action === 'reject') {
       controls = '<div class="operation-field"><label for="operation-note">\u9a73\u56de\u539f\u56e0</label><textarea id="operation-note" name="note" required></textarea></div>';
+    } else if (action === 'pay' && isOverseasPayment(receipt)) {
+      controls = '<p class="operation-confirmation">\u8bf7\u786e\u8ba4\u5df2\u5b8c\u6210\u6d77\u5916\u4ed8\u6b3e\uff0c\u5355\u636e\u5c06\u76f4\u63a5\u540c\u6b65\u91d1\u8776</p>';
     } else if (action === 'pay' || action === 'upload-receipt') {
       controls = (action === 'pay' ? '<p class="operation-confirmation">\u8bf7\u786e\u8ba4\u5df2\u5b8c\u6210\u652f\u4ed8\u5e76\u4e0a\u4f20\u652f\u4ed8\u56de\u5355</p>' : '')
         + '<div class="operation-field"><label for="receipt-number"><span class="required-mark" aria-hidden="true">*</span>\u56de\u5355\u53f7</label><input id="receipt-number" name="receiptNumber" type="text" required /></div>'
@@ -718,7 +762,7 @@
       ? document.activeElement : null;
     if (title) title.textContent = operationTitle(state.operationAction);
     setOperationError('');
-    renderOperationFields(state.operationAction);
+    renderOperationFields(state.operationAction, receipt);
     dialog.hidden = false;
     if (closeButton && typeof closeButton.focus === 'function') closeButton.focus();
   }

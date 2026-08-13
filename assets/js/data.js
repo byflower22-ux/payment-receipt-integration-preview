@@ -1,5 +1,6 @@
 (function (root) {
   const documents = [
+    { id: '202608130026', title: '新加坡会务服务费', type: '付款单', invoice: true, overseas: true, amount: 6800, currency: 'SGD', createdAt: '2026-08-13T09:30:00', applicant: '周敏', department: '国际业务部', payer: '花旗银行', content: '新加坡合作伙伴会务服务费用', status: '待财务审核', statusAt: '2026-08-13T09:30:00', cbsNumber: '', failureReason: '' },
     { id: '202608120025', title: '8月办公网络服务费', type: '付款单', invoice: true, overseas: false, amount: 3980, currency: 'CNY', createdAt: '2026-08-12T10:12:00', applicant: '刘洋', department: '行政部', payer: '中国工商银行', content: '办公网络专线8月服务费用', status: '已支付', statusAt: '2026-08-12T10:35:00', cbsNumber: 'CBS20260812025', failureReason: '' },
     { id: '202608110001', title: '8月停车费报销', type: '报销单', invoice: true, overseas: false, amount: 341.74, currency: 'CNY', createdAt: '2026-08-11T09:20:00', applicant: '陈昊', department: '企业运营服务中心', payer: '招商银行深圳分行', content: '费用时间：2026-08-10；停车费', status: '已支付', statusAt: '2026-08-11T15:50:54', cbsNumber: 'CBS20260811001', failureReason: '' },
     { id: '202608100002', title: '商务宴请', type: '报销单', invoice: true, overseas: false, amount: 105, currency: 'CNY', createdAt: '2026-08-10T09:59:24', applicant: '安平', department: '深圳三区运营部', payer: '招商银行深圳分行', content: '费用时间：2026-08-09；公司商务宴请', status: '已支付', statusAt: '2026-08-10T17:48:24', cbsNumber: 'CBS20260810002', failureReason: '' },
@@ -34,7 +35,7 @@
     '202608090003': ['待拉取', '待同步'],
     '202608080004': ['待拉取', '待同步'],
     '202608070005': ['待拉取', '待同步'],
-    '202608060006': ['已归档', '待同步'],
+    '202608060006': ['拉取失败', '待同步'],
     '202608050007': ['待拉取', '待同步'],
     '202608040008': ['已归档', '同步失败'],
     '202608030009': ['待拉取', '待同步'],
@@ -55,12 +56,24 @@
     '202508120024': ['待拉取', '待同步'],
   };
 
+  const OVERSEAS_PAYER = 'Sands Bosum Business Pte. Ltd';
+  const payerCompanyByBank = {
+    '招商银行深圳分行': '博商管理（深圳）有限公司',
+    '中国工商银行': '博商科技（深圳）有限公司',
+    '中国银行深圳分行': '博商国际贸易（深圳）有限公司',
+    '花旗银行': '博商香港有限公司',
+    '交通银行深圳分行': '博商教育科技（深圳）有限公司',
+    '建设银行深圳分行': '博商品牌文化（深圳）有限公司',
+    '中国建设银行': '博商人力资源服务（深圳）有限公司',
+  };
+
   documents.forEach(function (document) {
     const statuses = integrationStatusById[document.id] || ['待拉取', '待同步'];
-    document.receiptStatus = document.status === '已支付' ? statuses[0] : '—';
-    document.kingdeeStatus = document.status === '已支付' && document.receiptStatus === '已归档'
-      ? statuses[1]
-      : '—';
+    document.payer = document.overseas ? OVERSEAS_PAYER : (payerCompanyByBank[document.payer] || '博商管理（深圳）有限公司');
+    document.isOverseasPayment = document.payer === OVERSEAS_PAYER;
+    document.receiptStatus = !document.isOverseasPayment && document.status === '已支付' ? statuses[0] : '—';
+    document.kingdeeStatus = document.status === '已支付'
+      && (document.isOverseasPayment || document.receiptStatus === '已归档') ? statuses[1] : '—';
     document.paymentFailureReason = document.status === '支付失败'
       ? document.failureReason
       : '';
@@ -73,7 +86,8 @@
     document.kingdeeCode = document.kingdeeStatus === '同步成功'
       ? 'FKD' + String(document.id).slice(-7)
       : '';
-    document.cbsApplicationNumber = document.cbsNumber ? 'CBSAPP' + String(document.id).slice(-11) : '';
+    document.cbsNumber = document.isOverseasPayment ? '' : document.cbsNumber;
+    document.cbsApplicationNumber = !document.isOverseasPayment && document.cbsNumber ? 'CBSAPP' + String(document.id).slice(-11) : '';
     document.receiptNumber = document.receiptStatus === '已归档' ? 'RC' + String(document.id).slice(-8) : '';
     document.timeline = [];
     document.approvalPassedAt = ['待支付', '支付失败', '已支付'].includes(document.status)
@@ -86,30 +100,16 @@
     if (document.status !== '待财务审核') {
       document.timeline.push({ action: '审批', note: document.status === '已驳回' ? '审批驳回' : '审批通过', operator: '财务专员', at: document.createdAt });
     }
-    if (document.status === '待支付' || document.status === '支付失败' || document.status === '已支付') {
+    if (!document.isOverseasPayment && (document.status === '待支付' || document.status === '支付失败' || document.status === '已支付')) {
       document.timeline.push({ action: '提交付款', note: '同步CBS成功，CBS申请单编号：' + document.cbsApplicationNumber, operator: '系统', at: document.statusAt });
       document.timeline.push({ action: '获取支付结果', note: document.status === '支付失败' ? '查询CBS支付失败：' + document.paymentFailureReason : '查询CBS支付成功，CBS交易流水号：' + document.cbsNumber, operator: '系统', at: document.statusAt });
     }
     if (document.status === '已支付' && document.receiptStatus !== '—') {
       document.timeline.push({ action: '拉取回单结果', note: document.receiptStatus === '拉取失败' ? '拉取CBS回单失败：' + document.receiptFailureReason : '拉取CBS回单成功，回单号：' + document.receiptNumber, operator: '系统', at: document.statusAt });
     }
-    if (document.status === '已支付' && document.receiptStatus === '已归档' && document.kingdeeStatus !== '—') {
+    if (document.status === '已支付' && (document.isOverseasPayment || document.receiptStatus === '已归档') && document.kingdeeStatus !== '—') {
       document.timeline.push({ action: '同步金蝶', note: document.kingdeeStatus === '同步成功' ? '同步成功，金蝶编码：' + document.kingdeeCode : '金蝶同步失败：' + document.kingdeeFailureReason, operator: '系统', at: document.statusAt });
     }
-  });
-
-  const payerCompanyByBank = {
-    '招商银行深圳分行': '博商管理（深圳）有限公司',
-    '中国工商银行': '博商科技（深圳）有限公司',
-    '中国银行深圳分行': '博商国际贸易（深圳）有限公司',
-    '花旗银行': '博商香港有限公司',
-    '交通银行深圳分行': '博商教育科技（深圳）有限公司',
-    '建设银行深圳分行': '博商品牌文化（深圳）有限公司',
-    '中国建设银行': '博商人力资源服务（深圳）有限公司',
-  };
-
-  documents.forEach(function (document) {
-    document.payer = payerCompanyByBank[document.payer] || '博商管理（深圳）有限公司';
   });
 
   root.RECEIPT_DOCUMENTS = documents;

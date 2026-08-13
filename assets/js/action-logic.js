@@ -7,13 +7,20 @@
   const RECEIPT_UPLOAD_ACTION = 'upload-receipt';
   const KINGDEE_SYNC_ACTION = 'sync-kingdee';
   const FAILED_KINGDEE_SYNC_IDS = ['202608040008', '202608020010', '202607010019', '202511150021'];
+  const OVERSEAS_PAYER_NAMES = ['Sands Bosum Business Pte. Ltd'];
+
+  function isOverseasPayment(document) {
+    return Boolean(document && OVERSEAS_PAYER_NAMES.includes(String(document.payer || '').trim()));
+  }
 
   function getAvailableActions(document) {
     if (!document) return [];
     if (document.status === '待财务审核') return [APPROVE_ACTION, REJECT_ACTION];
     if (document.status === '待支付' || document.status === '支付失败') return [PAY_ACTION];
     if (document.status === '已支付' && document.receiptStatus === '拉取失败') return [RECEIPT_UPLOAD_ACTION];
-    if (document.status === '已支付' && document.receiptStatus === '已归档' && document.kingdeeStatus === '同步失败') {
+    if (document.status === '已支付'
+      && (isOverseasPayment(document) || document.receiptStatus === '已归档')
+      && document.kingdeeStatus === '同步失败') {
       return [KINGDEE_SYNC_ACTION];
     }
     return [];
@@ -87,7 +94,7 @@
       return document.receiptFailureReason ? '回单拉取失败：' + document.receiptFailureReason : '';
     }
     if (document.status === '已支付'
-      && document.receiptStatus === '已归档'
+      && (isOverseasPayment(document) || document.receiptStatus === '已归档')
       && document.kingdeeStatus === '同步失败') {
       return document.kingdeeFailureReason ? '金蝶同步失败：' + document.kingdeeFailureReason : '';
     }
@@ -143,6 +150,21 @@
       return nextDocument;
     }
 
+    if (action === PAY_ACTION && isOverseasPayment(nextDocument)) {
+      nextDocument.status = '已支付';
+      nextDocument.receiptStatus = '—';
+      nextDocument.receiptNumber = '';
+      nextDocument.fileName = '';
+      nextDocument.receiptFiles = [];
+      nextDocument.cbsNumber = '';
+      nextDocument.cbsApplicationNumber = '';
+      nextDocument.paymentFailureReason = '';
+      nextDocument.receiptFailureReason = '';
+      nextDocument.timeline.push(makeEvent('手动支付', note || '已手动确认支付', operator, nextDocument.statusAt));
+      appendAutomaticKingdeeResult(nextDocument, '系统');
+      return nextDocument;
+    }
+
     if (action === PAY_ACTION || action === RECEIPT_UPLOAD_ACTION) {
       const receiptNumber = requireValue(actionPayload.receiptNumber, '请填写回单号');
       const fileNames = normalizeReceiptFiles(actionPayload);
@@ -185,6 +207,7 @@
     applyManualAction,
     getLatestFailureReason,
     FAILED_KINGDEE_SYNC_IDS,
+    isOverseasPayment,
   };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

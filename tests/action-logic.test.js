@@ -6,6 +6,7 @@ const {
   applyManualAction,
   FAILED_KINGDEE_SYNC_IDS,
   getLatestFailureReason,
+  isOverseasPayment,
 } = require('../assets/js/action-logic.js');
 
 function documentFor(overrides) {
@@ -84,18 +85,38 @@ test('支付必须包含回单并自动归档和模拟金蝶结果', () => {
   }), /最多上传9个/);
 });
 
+test('海外付款主体跳过CBS和回单，支付后直接同步金蝶', () => {
+  const overseasDocument = documentFor({
+    id: '202608130026',
+    status: '待支付',
+    payer: 'Sands Bosum Business Pte. Ltd',
+  });
+  const result = applyManualAction(overseasDocument, 'pay', { note: '已完成海外付款' }, {
+    operator: '超级管理员', now: '2026-08-13T10:00:00',
+  });
+
+  assert.equal(isOverseasPayment(overseasDocument), true);
+  assert.equal(result.status, '已支付');
+  assert.equal(result.receiptStatus, '—');
+  assert.equal(result.kingdeeStatus, '同步成功');
+  assert.equal(result.cbsNumber, '');
+  assert.equal(result.cbsApplicationNumber, '');
+  assert.deepEqual(result.timeline.map((event) => event.action), ['手动支付', '同步金蝶']);
+  assert.ok(!result.timeline.some((event) => /CBS|回单/.test(event.note)));
+});
+
 test('上传回单后归档并自动模拟金蝶同步结果', () => {
   const result = applyManualAction(documentFor({
-    id: '202608020010', status: '已支付', receiptStatus: '拉取失败', kingdeeStatus: '待同步',
+    id: '202608060006', status: '已支付', receiptStatus: '拉取失败', kingdeeStatus: '待同步',
   }), 'upload-receipt', {
     receiptNumber: 'RC-20260812-03', fileName: '补传回单.pdf', note: '人工补传',
   }, { operator: '超级管理员', now: '2026-08-12T10:02:00' });
 
   assert.equal(result.receiptStatus, '已归档');
-  assert.equal(result.kingdeeStatus, '同步失败');
+  assert.equal(result.kingdeeStatus, '同步成功');
   assert.deepEqual(result.timeline.map((event) => event.action), ['手动上传回单', '同步金蝶']);
   assert.equal(result.timeline[0].operator, '超级管理员');
-  assert.match(result.timeline.at(-1).note, /金蝶同步失败：/);
+  assert.match(result.timeline.at(-1).note, /金蝶编码：FKD/);
 });
 
 test('同步金蝶仅在已支付、已归档、同步失败时可用且重试成功', () => {

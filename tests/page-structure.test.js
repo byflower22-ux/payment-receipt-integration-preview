@@ -191,6 +191,31 @@ test('approval page exposes CBS receipt and Kingdee status tracking', () => {
   assert.match(script, /kingdeeStatus/);
 });
 
+test('overseas payments hide receipt workflow and require no receipt upload on payment', () => {
+  const script = fs.readFileSync(appPath, 'utf8');
+
+  assert.match(script, /function isOverseasPayment\(receipt\)/);
+  assert.match(script, /action === 'pay' && isOverseasPayment\(receipt\)/);
+  assert.match(script, /\\u8bf7\\u786e\\u8ba4\\u5df2\\u5b8c\\u6210\\u6d77\\u5916\\u4ed8\\u6b3e/);
+  assert.match(script, /isOverseasPayment\(receipt\) \? '\\u2014' : displayValue\(receipt\.cbsNumber\)/);
+});
+
+test('overseas payment confirmation does not provide a remark field', () => {
+  const script = fs.readFileSync(appPath, 'utf8');
+
+  assert.match(
+    script,
+    /else if \(action === 'pay' && isOverseasPayment\(receipt\)\) \{\s*controls = '<p class="operation-confirmation">\\u8bf7\\u786e\\u8ba4\\u5df2\\u5b8c\\u6210\\u6d77\\u5916\\u4ed8\\u6b3e\\uff0c\\u5355\\u636e\\u5c06\\u76f4\\u63a5\\u540c\\u6b65\\u91d1\\u8776<\/p>';/
+  );
+});
+
+test('cached paid overseas documents are migrated into the Kingdee-only path', () => {
+  const script = fs.readFileSync(appPath, 'utf8');
+
+  assert.match(script, /document\.isOverseasPayment && document\.status === '\u5df2\u652f\u4ed8' && document\.kingdeeStatus === '\u2014'/);
+  assert.match(script, /document\.kingdeeStatus = '\u540c\u6b65\u6210\u529f'/);
+});
+
 test('approval page provides approval-time and payee-type columns with filters', () => {
   const page = fs.readFileSync(pagePath, 'utf8');
   const script = fs.readFileSync(appPath, 'utf8');

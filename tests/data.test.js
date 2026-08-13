@@ -20,13 +20,13 @@ test('simulated documents use only the existing payment statuses', () => {
   assert.equal(correctedDocument.kingdeeStatus, '同步失败');
   assert.ok(documents.some((document) => document.id === '202608080004' && document.status === '支付失败'));
   assert.ok(documents.every((document) => document.status !== '查询超期'));
-  assert.deepEqual([...kingdeeStatuses].sort(), ['—', '同步失败', '同步成功', '待同步'].sort());
+  assert.deepEqual([...kingdeeStatuses].sort(), ['—', '同步失败', '同步成功'].sort());
 });
 
-test('only archived receipts can start with a simulated Kingdee failure', () => {
+test('only archived domestic receipts can start with a simulated Kingdee failure', () => {
   const documents = loadDocuments();
   const failedIds = Array.from(documents
-    .filter((document) => document.kingdeeStatus === '同步失败')
+    .filter((document) => !document.isOverseasPayment && document.kingdeeStatus === '同步失败')
     .map((document) => document.id)
     .sort());
 
@@ -42,7 +42,7 @@ test('failure fixtures cover both receipt upload and manual Kingdee sync demonst
     assert.equal(byId[id].receiptStatus, '已归档');
     assert.equal(byId[id].kingdeeStatus, '同步失败');
   });
-  ['202608020010', '202511150021'].forEach((id) => {
+  ['202608060006'].forEach((id) => {
     assert.equal(byId[id].status, '已支付');
     assert.equal(byId[id].receiptStatus, '拉取失败');
     assert.equal(byId[id].kingdeeStatus, '—');
@@ -56,6 +56,8 @@ test('downstream statuses follow the payment, receipt, and Kingdee sequence', ()
     if (document.status !== '已支付') {
       assert.equal(document.receiptStatus, '—', document.id + ' must not enter receipt processing before payment');
       assert.equal(document.kingdeeStatus, '—', document.id + ' must not enter Kingdee sync before payment');
+    } else if (document.isOverseasPayment) {
+      assert.equal(document.receiptStatus, '—', document.id + ' must bypass receipt processing for overseas payment');
     } else if (document.receiptStatus !== '已归档') {
       assert.equal(document.kingdeeStatus, '—', document.id + ' must not enter Kingdee sync before receipt archival');
     }
@@ -84,7 +86,7 @@ test('initial integration timeline records auditable CBS, receipt, and Kingdee n
 test('payment entities are company names rather than bank names', () => {
   const documents = loadDocuments();
 
-  assert.ok(documents.every((document) => /公司|有限公司|集团/.test(document.payer)));
+  assert.ok(documents.every((document) => /公司|有限公司|集团|Sands Bosum Business Pte\. Ltd/.test(document.payer)));
   assert.ok(documents.every((document) => !/银行/.test(document.payer)));
 });
 
@@ -108,4 +110,16 @@ test('simulated data includes a paid document waiting for the CBS receipt pull',
   assert.equal(pendingReceipt.status, '\u5df2\u652f\u4ed8');
   assert.equal(pendingReceipt.receiptStatus, '\u5f85\u62c9\u53d6');
   assert.equal(pendingReceipt.kingdeeStatus, '\u2014');
+});
+
+test('overseas payer fixtures bypass CBS and receipt processing', () => {
+  const documents = loadDocuments();
+  const overseasDocuments = documents.filter((document) => document.payer === 'Sands Bosum Business Pte. Ltd');
+  const pendingApproval = documents.find((document) => document.id === '202608130026');
+
+  assert.ok(overseasDocuments.length > 0);
+  assert.ok(overseasDocuments.every((document) => document.receiptStatus === '—'));
+  assert.ok(overseasDocuments.every((document) => !document.cbsNumber && !document.cbsApplicationNumber));
+  assert.ok(overseasDocuments.every((document) => !document.timeline.some((event) => /CBS|回单/.test(event.note))));
+  assert.equal(pendingApproval.status, '待财务审核');
 });
