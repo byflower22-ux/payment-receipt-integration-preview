@@ -31,7 +31,7 @@
   const integrationStatusById = {
     '202608120025': ['待拉取', '待同步'],
     '202608110001': ['已归档', '同步成功'],
-    '202608100002': ['已归档', '同步成功'],
+    '202608100002': ['已归档', '部分失败'],
     '202608090003': ['待拉取', '待同步'],
     '202608080004': ['待拉取', '待同步'],
     '202608070005': ['待拉取', '待同步'],
@@ -82,7 +82,7 @@
       : '';
     document.kingdeeFailureReason = document.kingdeeStatus === '同步失败'
       ? '金蝶凭证校验失败，请人工同步'
-      : '';
+      : (document.kingdeeStatus === '部分失败' ? '拆单时部分单据同步失败、部分附件同步失败' : '');
     document.kingdeeCode = document.kingdeeStatus === '同步成功'
       ? 'FKD' + String(document.id).slice(-7)
       : '';
@@ -108,7 +108,7 @@
       document.timeline.push({ action: '拉取回单结果', note: document.receiptStatus === '拉取失败' ? '拉取CBS回单失败：' + document.receiptFailureReason : '拉取CBS回单成功，回单号：' + document.receiptNumber, operator: '系统', at: document.statusAt });
     }
     if (document.status === '已支付' && (document.isOverseasPayment || document.receiptStatus === '已归档') && document.kingdeeStatus !== '—') {
-      document.timeline.push({ action: '同步金蝶', note: document.kingdeeStatus === '同步成功' ? '同步成功，金蝶编码：' + document.kingdeeCode : '金蝶同步失败：' + document.kingdeeFailureReason, operator: '系统', at: document.statusAt });
+      document.timeline.push({ action: '同步金蝶', note: document.kingdeeStatus === '同步成功' ? '同步成功，金蝶编码：' + document.kingdeeCode : (document.kingdeeStatus === '部分失败' ? '金蝶部分失败：' : '金蝶同步失败：') + document.kingdeeFailureReason, operator: '系统', at: document.statusAt });
     }
   });
 

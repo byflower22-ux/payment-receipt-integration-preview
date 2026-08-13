@@ -20,7 +20,17 @@ test('simulated documents use only the existing payment statuses', () => {
   assert.equal(correctedDocument.kingdeeStatus, '同步失败');
   assert.ok(documents.some((document) => document.id === '202608080004' && document.status === '支付失败'));
   assert.ok(documents.every((document) => document.status !== '查询超期'));
-  assert.deepEqual([...kingdeeStatuses].sort(), ['—', '同步失败', '同步成功'].sort());
+  assert.deepEqual([...kingdeeStatuses].sort(), ['—', '同步失败', '部分失败', '同步成功'].sort());
+});
+
+test('simulated data includes an archived document with a partial Kingdee sync failure', () => {
+  const documents = loadDocuments();
+  const partiallyFailed = documents.find((document) => document.kingdeeStatus === '部分失败');
+
+  assert.ok(partiallyFailed);
+  assert.equal(partiallyFailed.status, '已支付');
+  assert.equal(partiallyFailed.receiptStatus, '已归档');
+  assert.match(partiallyFailed.kingdeeFailureReason, /部分单据同步失败.*部分附件同步失败/);
 });
 
 test('only archived domestic receipts can start with a simulated Kingdee failure', () => {
@@ -98,7 +108,7 @@ test('Kingdee encoding and stage-specific failure reasons match final integratio
     if (document.kingdeeStatus === '同步成功') assert.match(document.kingdeeCode, /^FKD\d{7}$/);
     if (document.status !== '支付失败') assert.equal(document.paymentFailureReason, '');
     if (document.receiptStatus !== '拉取失败') assert.equal(document.receiptFailureReason, '');
-    if (document.kingdeeStatus !== '同步失败') assert.equal(document.kingdeeFailureReason, '');
+    if (!['同步失败', '部分失败'].includes(document.kingdeeStatus)) assert.equal(document.kingdeeFailureReason, '');
   });
 });
 

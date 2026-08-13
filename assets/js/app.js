@@ -120,7 +120,7 @@
     if (status === '\u5f85\u62c9\u53d6' || status === '\u5f85\u540c\u6b65') {
       return 'status status--pending';
     }
-    if (status === '\u62c9\u53d6\u5931\u8d25' || status === '\u540c\u6b65\u5931\u8d25') {
+    if (status === '\u62c9\u53d6\u5931\u8d25' || status === '\u540c\u6b65\u5931\u8d25' || status === '部分失败') {
       return 'status status--failed';
     }
     return 'status';
@@ -173,6 +173,35 @@
   function normalizeDocumentFields() {
     if (!Array.isArray(RECEIPT_DOCUMENTS)) return;
     RECEIPT_DOCUMENTS.forEach(function (document) {
+      if (document.receiptStatus === '部分拉取失败') {
+        document.receiptStatus = '拉取失败';
+        document.receiptNumber = '';
+        document.fileName = '';
+        document.receiptFiles = [];
+      }
+      if (document.id === '202608060006') {
+        document.overseas = false;
+        document.payer = '博商科技（深圳）有限公司';
+        document.cbsNumber = 'CBS20260806006';
+        document.cbsApplicationNumber = 'CBSAPP20260806006';
+        document.receiptStatus = '拉取失败';
+        document.receiptFailureReason = 'CBS未返回电子回单，请人工上传';
+        document.kingdeeStatus = '—';
+        document.kingdeeCode = '';
+        document.kingdeeFailureReason = '';
+      }
+      if (document.id === '202608100002' && document.kingdeeStatus === '同步成功') {
+        document.kingdeeStatus = '部分失败';
+        document.kingdeeCode = '';
+        document.kingdeeFailureReason = '拆单时部分单据同步失败、部分附件同步失败';
+        if (Array.isArray(document.timeline)) {
+          document.timeline.forEach(function (event) {
+            if (event.action === '同步金蝶') {
+              event.note = '金蝶部分失败：' + document.kingdeeFailureReason;
+            }
+          });
+        }
+      }
       if (document.overseas && document.payer !== 'Sands Bosum Business Pte. Ltd') {
         document.payer = 'Sands Bosum Business Pte. Ltd';
       }
@@ -741,7 +770,9 @@
         + '<div class="operation-field"><label for="receipt-file"><span class="required-mark" aria-hidden="true">*</span>\u56de\u5355\u6587\u4ef6</label><input id="receipt-file" name="file" type="file" multiple required /></div>'
         + '<div class="operation-field"><label for="operation-note">\u5907\u6ce8</label><textarea id="operation-note" name="note"></textarea></div>';
     } else if (action === 'sync-kingdee') {
-      controls = '<p class="operation-confirmation">\u786e\u8ba4\u540e\u5355\u636e\u5c06\u540c\u6b65\u5230\u91d1\u8776</p>';
+      controls = '<p class="operation-confirmation">'
+        + (receipt.kingdeeStatus === '部分失败' ? '请将已同步到金蝶的单据删除，再确认重新同步' : '确认后单据将同步到金蝶')
+        + '</p>';
     }
     fields.innerHTML = controls;
   }

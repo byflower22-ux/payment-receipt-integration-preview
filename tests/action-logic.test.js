@@ -30,6 +30,9 @@ test('状态只提供其对应的业务操作', () => {
   assert.deepEqual(getAvailableActions(documentFor({
     status: '已支付', receiptStatus: '已归档', kingdeeStatus: '同步失败',
   })), ['sync-kingdee']);
+  assert.deepEqual(getAvailableActions(documentFor({
+    status: '已支付', receiptStatus: '已归档', kingdeeStatus: '部分失败',
+  })), ['sync-kingdee']);
 });
 
 test('审批与驳回改变表单状态并写入日志', () => {

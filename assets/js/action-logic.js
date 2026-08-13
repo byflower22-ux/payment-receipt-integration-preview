@@ -8,6 +8,7 @@
   const KINGDEE_SYNC_ACTION = 'sync-kingdee';
   const FAILED_KINGDEE_SYNC_IDS = ['202608040008', '202608020010', '202607010019', '202511150021'];
   const OVERSEAS_PAYER_NAMES = ['Sands Bosum Business Pte. Ltd'];
+  const KINGDEE_FAILURE_STATUSES = ['同步失败', '部分失败'];
 
   function isOverseasPayment(document) {
     return Boolean(document && OVERSEAS_PAYER_NAMES.includes(String(document.payer || '').trim()));
@@ -20,7 +21,7 @@
     if (document.status === '已支付' && document.receiptStatus === '拉取失败') return [RECEIPT_UPLOAD_ACTION];
     if (document.status === '已支付'
       && (isOverseasPayment(document) || document.receiptStatus === '已归档')
-      && document.kingdeeStatus === '同步失败') {
+      && KINGDEE_FAILURE_STATUSES.includes(document.kingdeeStatus)) {
       return [KINGDEE_SYNC_ACTION];
     }
     return [];
@@ -95,8 +96,9 @@
     }
     if (document.status === '已支付'
       && (isOverseasPayment(document) || document.receiptStatus === '已归档')
-      && document.kingdeeStatus === '同步失败') {
-      return document.kingdeeFailureReason ? '金蝶同步失败：' + document.kingdeeFailureReason : '';
+      && KINGDEE_FAILURE_STATUSES.includes(document.kingdeeStatus)) {
+      const prefix = document.kingdeeStatus === '部分失败' ? '金蝶部分失败：' : '金蝶同步失败：';
+      return document.kingdeeFailureReason ? prefix + document.kingdeeFailureReason : '';
     }
     return '';
   }

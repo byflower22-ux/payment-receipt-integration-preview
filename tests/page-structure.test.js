@@ -216,6 +216,33 @@ test('cached paid overseas documents are migrated into the Kingdee-only path', (
   assert.match(script, /document\.kingdeeStatus = '\u540c\u6b65\u6210\u529f'/);
 });
 
+test('cached receipt-failure fixture stays domestic so its receipt status remains visible', () => {
+  const script = fs.readFileSync(appPath, 'utf8');
+
+  assert.match(script, /document\.id === '202608060006'\) \{\s*document\.overseas = false;/);
+});
+
+test('partial receipt pulls are normalized as failures with their receipt files cleared', () => {
+  const script = fs.readFileSync(appPath, 'utf8');
+
+  assert.match(script, /document\.receiptStatus === '部分拉取失败'/);
+  assert.match(script, /document\.receiptStatus = '拉取失败';/);
+  assert.match(script, /document\.receiptFiles = \[\];/);
+});
+
+test('Kingdee status filter includes partial failure', () => {
+  const page = fs.readFileSync(pagePath, 'utf8');
+
+  assert.match(page, /data-filter="kingdeeStatus" data-value="部分失败">部分失败<\/button>/);
+});
+
+test('cached sample document is migrated to the partial Kingdee failure state', () => {
+  const script = fs.readFileSync(appPath, 'utf8');
+
+  assert.match(script, /document\.id === '202608100002' && document\.kingdeeStatus === '同步成功'/);
+  assert.match(script, /document\.kingdeeStatus = '部分失败';/);
+});
+
 test('approval page provides approval-time and payee-type columns with filters', () => {
   const page = fs.readFileSync(pagePath, 'utf8');
   const script = fs.readFileSync(appPath, 'utf8');
@@ -331,12 +358,16 @@ test('Kingdee sync confirmation provides no remark field', () => {
   const script = fs.readFileSync(appPath, 'utf8');
   const styles = fs.readFileSync(path.join(__dirname, '..', 'assets', 'css', 'styles.css'), 'utf8');
 
-  assert.match(
-    script,
-    /else if \(action === 'sync-kingdee'\) \{\s*controls = '<p class="operation-confirmation">\\u786e\\u8ba4\\u540e\\u5355\\u636e\\u5c06\\u540c\\u6b65\\u5230\\u91d1\\u8776<\/p>';\s*\}/,
-  );
+  assert.match(script, /action === 'sync-kingdee'/);
+  assert.match(script, /确认后单据将同步到金蝶/);
   assert.match(styles, /\.operation-confirmation\s*\{[^}]*border:\s*0/);
   assert.match(styles, /\.operation-confirmation\s*\{[^}]*background:\s*transparent/);
+});
+
+test('partial Kingdee failures prompt users to delete synced documents before retrying', () => {
+  const script = fs.readFileSync(appPath, 'utf8');
+
+  assert.match(script, /receipt\.kingdeeStatus === '部分失败' \? '请将已同步到金蝶的单据删除，再确认重新同步'/);
 });
 
 test('manual operation refreshes only the matching open detail dialog', () => {
