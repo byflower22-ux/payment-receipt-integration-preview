@@ -315,16 +315,41 @@
       if (action === 'approve' && !approvalMode) {
         return '<button class="operation-button" type="button" data-action="approval-page" data-id="' + id + '">\u5ba1\u6279</button>';
       }
-      return '<button class="operation-button" type="button" data-action="operation" data-operation="'
-        + escapeHtml(action) + '" data-id="' + id + '">' + escapeHtml(action === 'approve' ? '\u5ba1\u6279' : actionLabel(action)) + '</button>';
+      const changeType = {
+        pay: 'updated',
+        'upload-receipt': 'new',
+        'sync-kingdee': 'new',
+      }[action];
+      const actionTitle = changeType ? ' title="本次' + (changeType === 'new' ? '新增' : '调整') + '：' + actionLabel(action) + '"' : '';
+      return (changeType ? '<span class="change-marker-anchor">' : '')
+        + '<button class="operation-button" type="button" data-action="operation" data-operation="'
+        + escapeHtml(action) + '" data-id="' + id + '"' + actionTitle + '>' + escapeHtml(action === 'approve' ? '\u5ba1\u6279' : actionLabel(action)) + '</button>'
+        + (changeType
+          ? '<span class="change-marker change-marker--' + changeType + '" title="本次' + (changeType === 'new' ? '新增' : '调整') + '：' + actionLabel(action) + '"></span>'
+          : '')
+        + (changeType ? '</span>' : '');
     }).join('');
   }
 
-  function renderOperationButtons(receipt) {
+  function renderOperationButtons(receipt, showCommonMarkers) {
     const id = escapeHtml(displayValue(receipt.id));
+    const detailMarker = showCommonMarkers
+      ? '<span class="change-marker change-marker--updated" title="本次调整：详情"></span>'
+      : '';
+    const logMarker = showCommonMarkers
+      ? '<span class="change-marker change-marker--new" title="本次新增：日志"></span>'
+      : '';
+    const detailTitle = showCommonMarkers ? ' title="本次调整：详情"' : '';
+    const logTitle = showCommonMarkers ? ' title="本次新增：日志"' : '';
     return '<div class="table-actions">'
-      + '<button class="detail-button" type="button" data-action="details" data-id="' + id + '">\u8be6\u60c5</button>'
-      + '<button class="log-button" type="button" data-action="logs" data-id="' + id + '">\u65e5\u5fd7</button>'
+      + (showCommonMarkers ? '<span class="change-marker-anchor">' : '')
+      + '<button class="detail-button" type="button" data-action="details" data-id="' + id + '"' + detailTitle + '>\u8be6\u60c5</button>'
+      + detailMarker
+      + (showCommonMarkers ? '</span>' : '')
+      + (showCommonMarkers ? '<span class="change-marker-anchor">' : '')
+      + '<button class="log-button" type="button" data-action="logs" data-id="' + id + '"' + logTitle + '>\u65e5\u5fd7</button>'
+      + logMarker
+      + (showCommonMarkers ? '</span>' : '')
       + renderStateActionButtons(receipt)
       + '</div>';
   }
@@ -343,7 +368,7 @@
       return;
     }
 
-    body.innerHTML = items.map(function (receipt) {
+    body.innerHTML = items.map(function (receipt, index) {
       const id = displayValue(receipt.id);
       const expanded = state.expandedIds.has(String(receipt.id));
       const contentClass = expanded ? 'content-cell is-expanded' : 'content-cell';
@@ -352,9 +377,8 @@
       const foreignAmount = receipt.currency && receipt.currency !== 'CNY'
         ? formatMoney(receipt.amount) + ' ' + displayValue(receipt.currency)
         : '--';
-
       return '<tr>'
-        + '<td>' + renderOperationButtons(receipt) + '</td>'
+        + '<td>' + renderOperationButtons(receipt, index === 0) + '</td>'
         + '<td><span class="cell-text">' + escapeHtml(id) + '</span></td>'
         + '<td><button class="title-link cell-text" type="button" data-action="details" data-id="' + escapeHtml(id) + '">' + escapeHtml(displayValue(receipt.title)) + '</button></td>'
         + '<td>' + escapeHtml(receipt.invoice ? '\u662f' : '\u5426') + '</td>'
@@ -454,8 +478,9 @@
     const receiptFile = receipt.receiptNumber ? '支付回单_' + receipt.receiptNumber + '.pdf' : '';
     const actionButtons = renderStateActionButtons(receipt, true)
       .replace(/operation-button/g, 'operation-button operation-button--detail')
-      + '<button class="operation-button operation-button--detail file-preview-button" type="button" data-action="file-preview" data-id="'
-        + escapeHtml(displayValue(receipt.id)) + '">文件预览</button>';
+      + '<span class="change-marker-anchor"><button class="operation-button operation-button--detail file-preview-button" type="button" data-action="file-preview" data-id="'
+        + escapeHtml(displayValue(receipt.id)) + '" title="本次调整：文件预览">文件预览</button>'
+        + '<span class="change-marker change-marker--updated" title="本次调整：文件预览"></span></span>';
     page.innerHTML = '<div class="approval-detail-page__tabs" aria-label="页面标签">'
       + '<button type="button" data-action="approval-detail-back">审批确认</button>'
       + '<button class="detail-tab-active" type="button" aria-current="page" data-action="approval-detail-close">审批详情 <span aria-hidden="true">×</span></button>'
@@ -517,8 +542,12 @@
     const categories = ['流程附件', '发票', '回单'];
     const listHtml = categories.map(function (category) {
       const categoryFiles = files.filter(function (file) { return file.category === category; });
+      const categoryLabel = category === '回单'
+        ? '<span class="change-marker-anchor">' + escapeHtml(category)
+          + '<span class="change-marker change-marker--new" title="本次新增：回单文件分类"></span></span>'
+        : escapeHtml(category);
       return '<section class="preview-category" data-preview-category="' + (category === '回单' ? 'receipt' : category === '发票' ? 'invoice' : 'process') + '">'
-        + '<h3>' + escapeHtml(category) + '<span>' + categoryFiles.length + '</span></h3>'
+        + '<h3>' + categoryLabel + '<span>' + categoryFiles.length + '</span></h3>'
         + (categoryFiles.length ? '<div>' + categoryFiles.map(function (file) {
           const current = active.name === file.name;
           return '<button class="preview-file' + (current ? ' is-active' : '') + '" type="button" data-action="preview-file" data-id="'
@@ -1079,6 +1108,8 @@
     const tableBody = document.getElementById('receipt-table-body');
     const pagination = document.getElementById('pagination');
     const moreButton = document.getElementById('more-actions-button');
+    const resetDataButton = document.getElementById('reset-data-button');
+    const changeMarkerToggle = document.getElementById('change-marker-toggle');
     const moreMenu = ensureMoreMenu();
     const sidebarToggle = document.getElementById('sidebar-toggle') || document.querySelector('.topbar-left .icon-button');
     const financialMenu = document.getElementById('financial-menu-trigger');
@@ -1102,6 +1133,28 @@
         if (event.key === 'Enter') {
           event.preventDefault();
           runSearch();
+        }
+      });
+    }
+
+    if (changeMarkerToggle) {
+      changeMarkerToggle.addEventListener('click', function () {
+        const hidden = document.body.classList.toggle('change-markers-hidden');
+        changeMarkerToggle.textContent = hidden ? '显示标记' : '隐藏标记';
+        changeMarkerToggle.setAttribute('aria-pressed', String(hidden));
+      });
+    }
+
+    if (resetDataButton) {
+      resetDataButton.addEventListener('click', function () {
+        try {
+          if (root.localStorage) root.localStorage.removeItem(DOCUMENT_STORAGE_KEY);
+        } catch (error) {
+          // Continue to reload the seed fixtures even when storage is unavailable.
+        }
+        if (root.location) {
+          root.location.hash = '';
+          root.location.reload();
         }
       });
     }

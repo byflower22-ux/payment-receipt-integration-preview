@@ -138,6 +138,29 @@ test('file preview opens a dedicated page with a receipt category', () => {
   assert.match(script, /readFilePreviewIdFromHash/);
 });
 
+test('receipt category in file preview is marked as a new function', () => {
+  const script = fs.readFileSync(appPath, 'utf8');
+
+  assert.match(script, /const categoryLabel = category === '回单'/);
+  assert.match(script, /本次新增：回单文件分类/);
+  assert.match(script, /change-marker--new/);
+});
+
+test('file preview category marker keeps the receipt label left aligned', () => {
+  const styles = fs.readFileSync(stylePath, 'utf8');
+
+  assert.match(styles, /\.preview-category h3 > span:last-child\s*\{[^}]*margin-left:\s*auto/);
+  assert.doesNotMatch(styles, /\.preview-category h3 span\s*\{[^}]*margin-left:\s*auto/);
+});
+
+test('approval detail file preview is marked as an updated function', () => {
+  const script = fs.readFileSync(appPath, 'utf8');
+
+  assert.match(script, /change-marker-anchor"><button class="operation-button operation-button--detail file-preview-button"/);
+  assert.match(script, /本次调整：文件预览/);
+  assert.match(script, /change-marker--updated/);
+});
+
 test('file preview tab close returns to the approval list', () => {
   const script = fs.readFileSync(appPath, 'utf8');
 
@@ -185,8 +208,8 @@ test('approval page exposes CBS receipt and Kingdee status tracking', () => {
   assert.match(page, /aria-label="金蝶状态"/);
   assert.match(page, /data-value="拉取失败"/);
   assert.doesNotMatch(page, /拉取超期|待人工上传|待人工处理/);
-  assert.match(page, /<th scope="col">回单状态<\/th>/);
-  assert.match(page, /<th scope="col">金蝶状态<\/th>/);
+  assert.match(page, /<th scope="col"><span class="change-marker-anchor">回单状态<span class="change-marker change-marker--new"[^>]*><\/span><\/span><\/th>/);
+  assert.match(page, /<th scope="col"><span class="change-marker-anchor">金蝶状态<span class="change-marker change-marker--new"[^>]*><\/span><\/span><\/th>/);
   assert.match(script, /receiptStatus/);
   assert.match(script, /kingdeeStatus/);
 });
@@ -279,7 +302,7 @@ test('approval page provides the operation dialog contract', () => {
   const cancelButton = openingTagWithAttribute(page, 'button', 'id', 'operation-cancel');
   const submitButton = openingTagWithAttribute(page, 'button', 'id', 'operation-submit');
 
-  assert.match(page, /<th scope="col">操作<\/th>/);
+  assert.match(page, /<th scope="col"><span class="change-marker-anchor">操作<span class="change-marker change-marker--updated"[^>]*><\/span><\/span><\/th>/);
   assert.match(page, /<th scope="col">金蝶编码<\/th>/);
   assert.doesNotMatch(page, /<th scope="col">金额编号<\/th>/);
   assert.doesNotMatch(page, /<th scope="col">处理<\/th>/);
@@ -308,7 +331,7 @@ test('approval page provides the operation dialog contract', () => {
 test('approval page renders common and state-driven operation controls', () => {
   const script = fs.readFileSync(appPath, 'utf8');
 
-  assert.match(script, /function renderOperationButtons\(receipt\)/);
+  assert.match(script, /function renderOperationButtons\(receipt, showCommonMarkers\)/);
   assert.match(script, /function submitOperation\(event\)/);
   assert.match(script, /function renderTimeline\(timeline\)/);
   assert.match(script, /IntegrationActionLogic\.applyManualAction/);
@@ -368,6 +391,79 @@ test('partial Kingdee failures prompt users to delete synced documents before re
   const script = fs.readFileSync(appPath, 'utf8');
 
   assert.match(script, /receipt\.kingdeeStatus === '部分失败' \? '请将已同步到金蝶的单据删除，再确认重新同步'/);
+});
+
+test('partial Kingdee failure provides a visible example of this-release markers', () => {
+  const page = fs.readFileSync(pagePath, 'utf8');
+  const script = fs.readFileSync(appPath, 'utf8');
+  const styles = fs.readFileSync(stylePath, 'utf8');
+
+  assert.match(page, /class="change-marker-guide"/);
+  assert.match(page, /本次新增：回单状态筛选/);
+  assert.match(page, /本次新增：金蝶状态筛选/);
+  assert.match(page, /本次新增：回单状态字段/);
+  assert.match(page, /本次新增：金蝶状态字段/);
+  assert.match(page, /本次调整：操作栏合并状态处理动作/);
+  assert.match(page, /本次调整：失败原因字段/);
+  assert.match(script, /change-marker--new/);
+  assert.match(script, /change-marker--updated/);
+  assert.match(script, /pay:\s*'updated'/);
+  assert.match(script, /'upload-receipt':\s*'new'/);
+  assert.match(script, /'sync-kingdee':\s*'new'/);
+  assert.doesNotMatch(script, /本次新增：金蝶部分失败状态/);
+  assert.match(styles, /\.change-marker--new/);
+  assert.match(styles, /\.change-marker--updated/);
+  assert.match(styles, /\.change-marker\s*\{[^}]*width:\s*18px[^}]*height:\s*18px/);
+  assert.match(styles, /\.change-marker\s*\{[^}]*border:\s*2px solid/);
+  assert.match(styles, /border-radius:\s*50%/);
+  assert.doesNotMatch(styles, /\.status::before/);
+});
+
+test('details and logs show this-release markers only on the first rendered row', () => {
+  const script = fs.readFileSync(appPath, 'utf8');
+
+  assert.match(script, /function renderOperationButtons\(receipt, showCommonMarkers\)/);
+  assert.match(script, /showCommonMarkers\s*\?\s*'<span class="change-marker-anchor">'/);
+  assert.match(script, /renderOperationButtons\(receipt, index === 0\)/);
+});
+
+test('change markers float above their target without consuming layout space', () => {
+  const styles = fs.readFileSync(stylePath, 'utf8');
+
+  assert.match(styles, /\.change-marker-anchor\s*\{[^}]*position:\s*relative/);
+  assert.match(styles, /\.change-marker\s*\{[^}]*position:\s*absolute[^}]*top:\s*-\d+px[^}]*right:\s*-\d+px/);
+  assert.match(styles, /\.change-marker-guide\s+\.change-marker\s*\{[^}]*position:\s*static/);
+});
+
+test('change marker guide lives in the upper-right toolbar and supports hiding markers', () => {
+  const page = fs.readFileSync(pagePath, 'utf8');
+  const script = fs.readFileSync(appPath, 'utf8');
+  const styles = fs.readFileSync(stylePath, 'utf8');
+  const toolbar = openingTagWithClass(page, 'section', 'page-toolbar');
+  const toolbarStart = page.indexOf(toolbar);
+  const toolbarEnd = page.indexOf('</section>', toolbarStart);
+  const toolbarContent = page.slice(toolbarStart, toolbarEnd);
+
+  assert.match(toolbarContent, /class="change-marker-guide"/);
+  assert.match(toolbarContent, /id="change-marker-toggle"/);
+  assert.equal(page.indexOf('change-marker-guide', toolbarEnd), -1);
+  assert.match(script, /getElementById\('change-marker-toggle'\)/);
+  assert.match(script, /change-markers-hidden/);
+  assert.match(styles, /\.change-markers-hidden\s+\.change-marker/);
+});
+
+test('upper-right reset button clears locally persisted workflow data and reloads the initial fixtures', () => {
+  const page = fs.readFileSync(pagePath, 'utf8');
+  const script = fs.readFileSync(appPath, 'utf8');
+  const toolbar = openingTagWithClass(page, 'section', 'page-toolbar');
+  const toolbarStart = page.indexOf(toolbar);
+  const toolbarEnd = page.indexOf('</section>', toolbarStart);
+  const toolbarContent = page.slice(toolbarStart, toolbarEnd);
+
+  assert.match(toolbarContent, /id="reset-data-button"/);
+  assert.match(script, /getElementById\('reset-data-button'\)/);
+  assert.match(script, /localStorage\.removeItem\(DOCUMENT_STORAGE_KEY\)/);
+  assert.match(script, /location\.reload\(\)/);
 });
 
 test('manual operation refreshes only the matching open detail dialog', () => {

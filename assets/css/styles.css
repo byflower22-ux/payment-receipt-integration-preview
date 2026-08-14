@@ -189,6 +189,8 @@ h1 { display: inline; margin: 0 8px 0 0; font-size: 16px; }
 .button:hover { color: var(--accent); border-color: #f4b4b4; }
 .button--accent { color: #fff; border-color: var(--accent); background: var(--accent); }
 .button--accent:hover { color: #fff; background: #e85a5a; }
+.button--reset { color: #c75b5b; border-color: #e8b6b6; background: #fff; }
+.button--reset:hover, .button--reset:focus-visible { color: #fff; border-color: #e85a5a; background: #e85a5a; }
 .button--small { min-height: 22px; padding: 0 8px; }
 
 .more-actions-menu {
@@ -232,6 +234,19 @@ h1 { display: inline; margin: 0 8px 0 0; font-size: 16px; }
 .date-range-separator { margin: 0 4px; color: var(--muted); }
 #payer-select { width: 310px; }
 
+.change-marker-guide { display: inline-flex; align-items: center; gap: 6px; color: #6e7886; font-size: 12px; }
+.change-marker-guide__title { margin-right: 4px; color: #303846; font-weight: 700; }
+.change-marker-guide__legend { display: inline-flex; align-items: center; gap: 4px; }
+.change-marker-anchor { position: relative; display: inline-flex; align-items: center; }
+.change-marker { position: absolute; z-index: 2; top: -9px; right: -10px; display: block; width: 18px; height: 18px; border: 2px solid; border-radius: 50%; }
+.change-marker-guide .change-marker { position: static; display: inline-block; flex: 0 0 18px; }
+.change-marker--new { border-color: #1677ff; }
+.change-marker--updated { border-color: #fa8c16; }
+.change-marker-toggle { padding: 2px 6px; border: 1px solid #dce4ee; border-radius: 2px; color: #6594c0; background: #fff; font-size: 12px; }
+.change-marker-toggle:hover, .change-marker-toggle:focus-visible { color: #f45656; border-color: #f45656; background: #fff7f7; }
+.change-markers-hidden .change-marker { display: none; }
+.change-markers-hidden .change-marker-guide__legend { display: none; }
+
 .list-section { margin: 24px 10px 18px; background: #fff; border: 1px solid #f0f2f6; }
 .list-meta { display: flex; align-items: center; justify-content: space-between; min-height: 33px; padding: 0 10px; color: var(--muted); border-bottom: 1px solid var(--line); }
 .text-button { border: 0; color: #718096; background: transparent; }
@@ -274,10 +289,9 @@ th:nth-child(23) { width: 90px; }
 }
 .title-link { padding: 0; border: 0; color: var(--blue); text-align: left; background: transparent; }
 .title-link:hover { text-decoration: underline; }
-.status { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
-.status::before { width: 6px; height: 6px; border-radius: 50%; content: ""; background: var(--success); }
-.status--pending::before { background: #efac52; } .status--failed::before { background: var(--accent); } .status--rejected::before { background: #9aa5b7; } .status--manual::before { background: #8b6fd8; }
-.status--not-started::before { display: none; }
+.status { display: inline-block; color: var(--success); white-space: nowrap; }
+.status--pending { color: #c17815; } .status--failed { color: var(--accent); } .status--rejected { color: #7e8796; } .status--manual { color: #7359ba; }
+.status--not-started { color: inherit; }
 .cell-text {
   display: block;
   overflow: hidden;
@@ -438,7 +452,7 @@ th:nth-child(23) { width: 90px; }
 .preview-category { margin-top: 11px; }
 .preview-category h3 { display: flex; align-items: center; justify-content: space-between; margin: 0 0 5px; padding: 4px 5px; color: #566174; font-size: 13px; }
 .preview-category h3::before { margin-right: 5px; color: #8894a5; content: "⌄"; }
-.preview-category h3 span { margin-left: auto; min-width: 18px; padding: 0 5px; border-radius: 9px; color: #8b96a6; text-align: center; background: #f0f3f7; }
+.preview-category h3 > span:last-child { margin-left: auto; min-width: 18px; padding: 0 5px; border-radius: 9px; color: #8b96a6; text-align: center; background: #f0f3f7; }
 .preview-category__empty { margin: 0; padding: 4px 10px; color: #a0a9b8; font-size: 12px; }
 .preview-file { display: block; width: 100%; min-height: 28px; padding: 4px 8px; overflow: hidden; border: 0; color: #61718a; text-align: left; white-space: nowrap; text-overflow: ellipsis; background: transparent; }
 .preview-file:hover, .preview-file.is-active { color: #4f91cf; background: #eef6ff; }

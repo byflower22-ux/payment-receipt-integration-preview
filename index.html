@@ -71,6 +71,12 @@
               <button id="search-button" type="button" aria-label="搜索">⌕</button>
             </div>
             <button id="more-actions-button" class="button button--accent" type="button">更多 <span aria-hidden="true">≡</span></button>
+            <button id="reset-data-button" class="button button--reset" type="button">重置数据</button>
+            <aside class="change-marker-guide" aria-label="本次改动标记说明">
+              <span class="change-marker-guide__title">本次改动</span>
+              <span class="change-marker-guide__legend"><span class="change-marker change-marker--new" title="本次新增：新增状态或规则"></span><span>新增</span><span class="change-marker change-marker--updated" title="本次调整：现有功能调整"></span><span>调整</span></span>
+              <button id="change-marker-toggle" class="change-marker-toggle" type="button" aria-pressed="false">隐藏标记</button>
+            </aside>
           </div>
         </section>
 
@@ -87,7 +93,7 @@
             </div>
           </div>
           <div class="filter-row" role="group" aria-label="回单状态">
-            <span class="filter-label">回单状态：</span>
+            <span class="filter-label"><span class="change-marker-anchor">回单状态：<span class="change-marker change-marker--new" title="本次新增：回单状态筛选"></span></span></span>
             <div class="filter-chips">
               <button class="filter-chip is-active" type="button" data-filter="receiptStatus" data-value="">全部</button>
               <button class="filter-chip" type="button" data-filter="receiptStatus" data-value="待拉取">待拉取</button>
@@ -96,7 +102,7 @@
             </div>
           </div>
           <div class="filter-row" role="group" aria-label="金蝶状态">
-            <span class="filter-label">金蝶状态：</span>
+            <span class="filter-label"><span class="change-marker-anchor">金蝶状态：<span class="change-marker change-marker--new" title="本次新增：金蝶状态筛选"></span></span></span>
             <div class="filter-chips">
               <button class="filter-chip is-active" type="button" data-filter="kingdeeStatus" data-value="">全部</button>
               <button class="filter-chip" type="button" data-filter="kingdeeStatus" data-value="待同步">待同步</button>
@@ -197,7 +203,7 @@
             <table>
               <thead>
                 <tr>
-                  <th scope="col">操作</th>
+                  <th scope="col"><span class="change-marker-anchor">操作<span class="change-marker change-marker--updated" title="本次调整：操作栏合并状态处理动作"></span></span></th>
                   <th scope="col">单号</th>
                   <th scope="col">标题</th>
                   <th scope="col">是否有发票</th>
@@ -215,10 +221,10 @@
                   <th scope="col">单据类型</th>
                   <th scope="col">状态</th>
                   <th scope="col">收款方类型</th>
-                  <th scope="col">回单状态</th>
-                  <th scope="col">金蝶状态</th>
+                  <th scope="col"><span class="change-marker-anchor">回单状态<span class="change-marker change-marker--new" title="本次新增：回单状态字段"></span></span></th>
+                  <th scope="col"><span class="change-marker-anchor">金蝶状态<span class="change-marker change-marker--new" title="本次新增：金蝶状态字段"></span></span></th>
                   <th scope="col">状态时间</th>
-                  <th scope="col">失败原因</th>
+                  <th scope="col"><span class="change-marker-anchor">失败原因<span class="change-marker change-marker--updated" title="本次调整：失败原因字段"></span></span></th>
                   <th scope="col">审批人</th>
                 </tr>
               </thead>
